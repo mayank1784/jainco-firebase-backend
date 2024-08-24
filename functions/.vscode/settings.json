@@ -1,0 +1,33 @@
+{
+  // "eslint.workingDirectories": [
+  //     { "directory": "functions", "changeProcessCWD": true }
+  //   ],
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "always",
+    "source.addMissingImports": "always"
+  },
+  "prettier.tabWidth": 2,
+  "prettier.useTabs": false,
+  "prettier.semi": true,
+  "prettier.singleQuote": false, // Double quotes as per ESLint configuration
+  "prettier.jsxSingleQuote": false,
+  "prettier.trailingComma": "all", // "es5" is replaced by "all" for more consistent formatting
+  "prettier.arrowParens": "always",
+  "prettier.bracketSpacing": false,
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "typescript.preferences.importModuleSpecifier": "relative", // Optional: Use relative paths for imports
+  "typescript.format.enable": true
+}

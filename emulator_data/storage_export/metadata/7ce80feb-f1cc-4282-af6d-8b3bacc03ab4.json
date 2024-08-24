@@ -1,0 +1,19 @@
+{
+  "name": "images/1723524830963_aali.jpg",
+  "bucket": "jainco.appspot.com",
+  "metageneration": 1,
+  "generation": 1723524831001,
+  "contentType": "image/jpeg",
+  "storageClass": "STANDARD",
+  "contentDisposition": "inline",
+  "downloadTokens": [
+    "db9d796a-b344-4c1b-92c5-6e72e68a3e7f"
+  ],
+  "etag": "tLZYUZA1czb3X5qMm4VExMZhNcQ",
+  "customMetadata": {},
+  "timeCreated": "2024-08-13T04:53:51.001Z",
+  "updated": "2024-08-13T04:53:51.001Z",
+  "size": 210896,
+  "md5Hash": "MY6TKbXNPK7XYb6xSRPmjA==",
+  "crc32c": "3501864418"
+}

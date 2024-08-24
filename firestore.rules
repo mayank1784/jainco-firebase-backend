@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Rules for the users collection
+    match /users/{userId} {
+      // Admin can read and write all user documents
+      allow read, write: if request.auth != null && request.auth.token.admin == true;
+      
+      // Non-admin users can read their own document and write to it, except for the "role" field
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId &&
+                    !(request.resource.data.keys().hasAny(["role"]));
+    }
+    
+    // Rules for the categories collection
+    match /categories/{categoryId} {
+      // Everyone can read
+      allow read: if true;
+      
+      // Only admin users can write
+      allow write: if request.auth != null && request.auth.token.admin == true;
+    }
+    
+    // Rules for the products collection
+    match /products/{productId} {
+      // Everyone can read
+      allow read: if true;
+      
+      // Only admin users can write
+      allow write: if request.auth != null && request.auth.token.admin == true;
+
+       match /variations/{variationId} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.token.admin == true;
+      }
+    }
+  }
+}

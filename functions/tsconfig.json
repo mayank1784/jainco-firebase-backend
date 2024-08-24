@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "outDir": "./lib",
+    "rootDir": "./src",
+    "sourceMap": true,
+    "strict": true,
+    "target": "es2017",
+    "skipLibCheck": true,  //done for algolia 
+    // "allowJs": true 
+  },
+  "compileOnSave": true,
+  "include": [
+    "src",
+    // ".eslintrc.js"
+  ],
+  "exclude": ["node_modules"] //done for algolia
+}
