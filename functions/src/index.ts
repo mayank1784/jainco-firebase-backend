@@ -1,22 +1,13 @@
-
-
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions/v1";
 // @ts-ignore
 import { client } from "./algoliaSearch";
-import { JSDOM } from "jsdom";
+
 import { error } from "firebase-functions/logger";
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 const firestore = admin.firestore();
-
-
-// Utility function to strip HTML tags
-const stripHtmlTags = (html: string): string => {
-  const dom = new JSDOM(html);
-  return dom.window.document.body.textContent || "";
-};
 
 export const createadmin = functions.https.onCall(async (data, context) => {
   // Check if user has admin privilege
@@ -102,7 +93,14 @@ export const fetchProductsByCategory = functions.https.onCall(
       // Query for products with the specified category, selecting only specific fields
       const querySnapshot = await productsRef
         .where("category", "==", categoryId)
-        .select("name", "lowerPrice", "upperPrice", "mainImage", "description") // Select only the necessary fields
+        .select(
+          "name",
+          "lowerPrice",
+          "upperPrice",
+          "mainImage",
+          "description",
+          "variationTypes"
+        ) // Select only the necessary fields
         .get();
 
       if (querySnapshot.empty) {
@@ -115,14 +113,31 @@ export const fetchProductsByCategory = functions.https.onCall(
       // Extract only the specific fields
       const productList = querySnapshot.docs.map((doc) => {
         const data = doc.data();
-        return {
+
+        let variation: string[] = [];
+
+        if (
+          data.variationTypes &&
+          Object.keys(data.variationTypes).length > 0
+        ) {
+          for (const value of Object.values(data.variationTypes)) {
+            if (Array.isArray(value)) {
+              variation = [...variation, ...value];
+            }
+          }
+        }
+
+        const dataToReturn = {
           id: doc.id,
           name: data.name,
           lowerPrice: data.lowerPrice,
           upperPrice: data.upperPrice,
           mainImage: data.mainImage,
           description: data.description,
+          ...(variation.length > 0 && { variationTypes: variation.join(", ") }),
         };
+
+        return dataToReturn;
       });
 
       return { products: productList };
@@ -136,91 +151,44 @@ export const fetchProductsByCategory = functions.https.onCall(
   }
 );
 
-export const searchProducts = functions.https.onCall(async (data, context) => {
-  const searchQuery = data.query?.trim();
-  if (!searchQuery) {
-    return { message: "Search query is required." };
-  }
-
-  try {
-    const productsRef = firestore.collection("products");
-    const results: { id: string; [key: string]: any }[] = [];
-
-    // First search by product name
-    const nameQuerySnapshot = await productsRef
-      .where("name", ">=", searchQuery)
-      .where("name", "<=", searchQuery + "\uf8ff")
-      .limit(8) // Limit to 8 results to check if we need more
-      .get();
-
-    // Collect results from name search
-    nameQuerySnapshot.forEach((doc) => {
-      results.push({ id: doc.id, ...doc.data() });
-    });
-
-    // If fewer than 8 results, perform a search by description
-    if (nameQuerySnapshot.size < 8) {
-      const descriptionQuerySnapshot = await productsRef.get(); // Retrieve all documents to filter by description later
-
-      descriptionQuerySnapshot.forEach((doc) => {
-        const data = doc.data();
-        const description = stripHtmlTags(data.description || "");
-        if (description.toLowerCase().includes(searchQuery.toLowerCase())) {
-          // Add result if not already in the results
-          if (!results.find((item) => item.id === doc.id)) {
-            results.push({ id: doc.id, ...data });
-          }
-        }
-      });
-    }
-
-    // Remove duplicates by id
-    const uniqueResults = Array.from(
-      new Map(results.map((item) => [item.id, item])).values()
-    );
-
-    return { products: uniqueResults };
-  } catch (error) {
-    console.error("Error searching products:", error);
-    return { error: "Failed to search products." };
-  }
-});
-
 export const syncProductsToAlgolia = functions.firestore
   .document("/products/{productId}")
   .onWrite(async (change, context) => {
     const productId = context.params.productId;
-    const product = change.after.exists ? change.after.data() : null;
+    let product = change.after.exists ? change.after.data() : null;
     const indexName = "products";
+
     if (product) {
+      if (product.otherImages) {
+        delete product.otherImages;
+      }
+      if (product.variationTypes) {
+        const variationObject = product.variationTypes;
+        product.variationTypes = [];
+        for (const [_, value] of Object.entries(variationObject)) {
+          if (Array.isArray(value)) {
+            product.variationTypes = [...product.variationTypes, ...value];
+          }
+        }
+      }
+      const categoryRef = firestore
+        .collection("categories")
+        .doc(product.category);
+      const categoryDoc = await categoryRef.get();
+
+      // Check if the category document exists
+      if (categoryDoc.exists) {
+        const categoryData = categoryDoc.data();
+        if (categoryData) {
+          const categoryName = categoryData.name;
+          product.category = categoryName;
+        }
+      }
+
       try {
         const { taskID } = await client.saveObject({
           indexName,
           body: { objectID: productId, ...product },
-        });
-        await client.waitForTask({
-          indexName,
-          taskID,
-        });
-      } catch (error) {
-        console.log(error);
-      }
-    } else {
-      console.log("error outside algolia: ", error);
-    }
-  });
-
-  export const syncCategoriesToAlgolia = functions.firestore
-  .document("/categories/{categoryId}")
-  .onWrite(async (change, context) => {
-    const categoryId = context.params.categoryId;
-    const category = change.after.exists ? change.after.data() : null;
-    const indexName = "categories";
-    if (category) {
-      try {
-        const { taskID } = await client.saveObject({
-          indexName,
-          body: { objectID: categoryId, ...category },
         });
         await client.waitForTask({
           indexName,

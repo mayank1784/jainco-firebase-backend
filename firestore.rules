@@ -11,6 +11,11 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow update: if request.auth != null && request.auth.uid == userId &&
                     !(request.resource.data.keys().hasAny(["role"]));
+      
+      // Any authenticated user can create their own document but role must not be "admin"
+      allow create: if request.auth != null && request.auth.uid == userId &&
+                request.resource.data.role != "admin" &&
+                request.resource.data.email == request.auth.token.email;
     }
     
     // Rules for the categories collection
