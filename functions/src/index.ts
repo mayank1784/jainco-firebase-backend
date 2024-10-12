@@ -1,6 +1,6 @@
 import * as admin from "firebase-admin";
 import * as functions from "firebase-functions/v1";
-// @ts-ignore
+
 import { client } from "./algoliaSearch";
 
 import { error } from "firebase-functions/logger";
@@ -8,6 +8,14 @@ import { error } from "firebase-functions/logger";
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 const firestore = admin.firestore();
+
+type CategoryWithProducts = {
+  id: string;
+  image: string;
+  name: string;
+  description: string;
+  products: Record<string,string>[];
+};
 
 export const createadmin = functions.https.onCall(async (data, context) => {
   // Check if user has admin privilege
@@ -155,7 +163,7 @@ export const syncProductsToAlgolia = functions.firestore
   .document("/products/{productId}")
   .onWrite(async (change, context) => {
     const productId = context.params.productId;
-    let product = change.after.exists ? change.after.data() : null;
+    const product = change.after.exists ? change.after.data() : null;
     const indexName = "products";
 
     if (product) {
@@ -201,3 +209,165 @@ export const syncProductsToAlgolia = functions.firestore
       console.log("error outside algolia: ", error);
     }
   });
+
+// export const fetchCategoriesWithProductNames = functions.https.onCall(
+//   async (data, context) => {
+//     try {
+//       // Step 1: Fetch all categories
+//       const categoriesSnapshot = await firestore.collection("categories").get();
+
+//       if (categoriesSnapshot.empty) {
+//         return {
+//           categories: [],
+//           message: "No categories found.",
+//         };
+//       }
+
+//       // Step 2: Initialize an array to store categories with product names
+//       const categoriesWithProducts: CategoryWithProducts[] = [];
+
+//       // Step 3: Iterate over each category and fetch associated product names
+//       for (const categoryDoc of categoriesSnapshot.docs) {
+//         const categoryData = categoryDoc.data();
+//         const categoryId = categoryDoc.id;
+
+//         // Fetch products under the current category, selecting only the name field
+//         const productsSnapshot = await firestore
+//           .collection("products")
+//           .where("category", "==", categoryId)
+//           .select("name")
+//           .get();
+
+//         // Extract product names
+//         const productNames = productsSnapshot.docs.map((doc) => {
+//           const productData = doc.data();
+//           return {id: doc.id,
+//             name: productData.name};
+//         });
+
+//         // Step 4: Store the category and its associated product names
+//         categoriesWithProducts.push({
+//           id:categoryId,
+//           image: categoryData.image,
+//           name: categoryData.name,
+//           description: categoryData.description,
+//           products: productNames
+//         });
+//       }
+
+//       // Step 5: Return the structured categories with product names
+//       return { categories: categoriesWithProducts };
+//     } catch (error) {
+//       console.error("Error fetching categories with products:", error);
+//       throw new functions.https.HttpsError(
+//         "internal",
+//         "Failed to fetch categories with products"
+//       );
+//     }
+//   }
+// );
+
+export const fetchCategoriesWithProductNames = functions.https.onCall(
+  async (data, context) => {
+    try {
+      // Step 1: Check if a categoryId is passed as a parameter
+      const categoryId = data?.categoryId || null;
+
+      // Step 2: Initialize an array to store categories with product names
+      const categoriesWithProducts: CategoryWithProducts[] = [];
+
+      // Step 3: Fetch categories based on whether a categoryId is provided
+      let categoriesSnapshot;
+
+      if (categoryId) {
+        // Fetch only the category with the specified categoryId
+        const categoryDoc = await firestore.collection("categories").doc(categoryId).get();
+        
+        if (!categoryDoc.exists) {
+          return {
+            categories: [],
+            message: "Category not found.",
+          };
+        }
+
+        // Get category data
+        const categoryData = categoryDoc.data();
+
+        // Fetch products under the current category, selecting only the name field
+        const productsSnapshot = await firestore
+          .collection("products")
+          .where("category", "==", categoryId)
+          .select("name")
+          .get();
+
+        // Extract product names
+        const productNames = productsSnapshot.docs.map((doc) => {
+          const productData = doc.data();
+          return {
+            id: doc.id,
+            name: productData.name,
+          };
+        });
+
+        // Store the category and its associated product names
+        categoriesWithProducts.push({
+          id: categoryDoc.id,
+          image: categoryData?.image,
+          name: categoryData?.name,
+          description: categoryData?.description,
+          products: productNames,
+        });
+      } else {
+        // Fetch all categories
+        categoriesSnapshot = await firestore.collection("categories").get();
+
+        if (categoriesSnapshot.empty) {
+          return {
+            categories: [],
+            message: "No categories found.",
+          };
+        }
+
+        // Step 4: Iterate over each category and fetch associated product names
+        for (const categoryDoc of categoriesSnapshot.docs) {
+          const categoryData = categoryDoc.data();
+          const categoryId = categoryDoc.id;
+
+          // Fetch products under the current category, selecting only the name field
+          const productsSnapshot = await firestore
+            .collection("products")
+            .where("category", "==", categoryId)
+            .select("name")
+            .get();
+
+          // Extract product names
+          const productNames = productsSnapshot.docs.map((doc) => {
+            const productData = doc.data();
+            return {
+              id: doc.id,
+              name: productData.name,
+            };
+          });
+
+          // Store the category and its associated product names
+          categoriesWithProducts.push({
+            id: categoryId,
+            image: categoryData.image,
+            name: categoryData.name,
+            description: categoryData.description,
+            products: productNames,
+          });
+        }
+      }
+
+      // Step 5: Return the structured categories with product names
+      return { categories: categoriesWithProducts, message: "Success" };
+    } catch (error) {
+      console.error("Error fetching categories with products:", error);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to fetch categories with products"
+      );
+    }
+  }
+);

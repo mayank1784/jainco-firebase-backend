@@ -1,5 +1,12 @@
 {
   "projects": {
     "default": "jainco"
-  }
+  },
+  "targets": {},
+  "etags": {
+    "jainco": {
+      "extensionInstances": {}
+    }
+  },
+  "dataconnectEmulatorConfig": {}
 }
